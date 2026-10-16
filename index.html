@@ -510,8 +510,8 @@
     if (rec.st === '출장') return 'trip';
     if (rec.st === '외근' || memo.includes('외부사역') || memo.includes('외근')) return 'out';
     if (rec.st === '협의지각') return 'hl';
-    // 메모가 있는 날은 상태를 직접 '지각'으로 적지 않는 한 정상출근으로 봅니다
-    if (memo && rec.st !== '지각') return 'ok';
+    // 메모가 있는 날은 상태가 '지각'이어도 정상출근으로 봅니다
+    if (memo) return 'ok';
     if (rec.st === '지각' || evaluateDayMetrics(memId, year, month, day, rec.in).isLate) return 'late';
     return 'ok';
   }
