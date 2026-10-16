@@ -503,6 +503,17 @@
     return { isLate: t !== null && target !== null && t > target };
   }
 
+  // 하루 기록의 카테고리: off(휴무) / trip(출장) / out(외근·외부사역) / hl(협의지각) / late(지각) / ok(정상)
+  function classifyDay(memId, year, month, day, rec) {
+    const memo = rec.memo || '';
+    if (rec.st === '휴무') return 'off';
+    if (rec.st === '출장') return 'trip';
+    if (rec.st === '외근' || memo.includes('외부사역') || memo.includes('외근')) return 'out';
+    if (rec.st === '협의지각') return 'hl';
+    if (rec.st === '지각' || evaluateDayMetrics(memId, year, month, day, rec.in).isLate) return 'late';
+    return 'ok';
+  }
+
   function tally(memId, year, month, memData) {
     let attended = 0, late = 0, lateMin = 0;
     // 지각인 날의 '출근시간 - 기준시간'(분)을 더합니다
@@ -516,10 +527,8 @@
       if (!isRequiredWorkDay(memId, year, month, +day)) return;
       if (rec.st === '휴무') return;
       if (rec.in || rec.out || rec.memo || rec.st === '외근' || rec.st === '출장' || rec.st === '야근') attended++;
-      if (rec.st === '지각') { late++; lateMin += minutesLate(day); }
-      else if (rec.st !== '협의지각' && rec.st !== '외근' && rec.st !== '출장') {
-        if (evaluateDayMetrics(memId, year, month, +day, rec.in).isLate) { late++; lateMin += minutesLate(day); }
-      }
+      // 달력에 '지각'으로 표시되는 날만 지각 횟수·분에 넣습니다 (외근·외부사역·출장·협의지각 등은 제외)
+      if (classifyDay(memId, year, month, +day, rec) === 'late') { late++; lateMin += minutesLate(day); }
     });
     return { attended, late, lateMin };
   }
@@ -712,14 +721,7 @@
       const record = memData[day];
       if (record && !isBeforeHire && !isAfterResign && !off) {
         if (record.st !== '휴무') timeHtml = timesHtml(record);
-        const evalRes = evaluateDayMetrics(currentMemberId, currentYear, currentMonth, day, record.in);
-        let key;
-        if (record.st === '휴무') key = 'off';
-        else if (record.st === '출장') key = 'trip';
-        else if (record.st === '외근' || record.memo?.includes('외부사역')) key = 'out';
-        else if (record.st === '지각' || evalRes.isLate) key = 'late';
-        else if (record.st === '협의지각') key = 'hl';
-        else key = 'ok';
+        const key = classifyDay(currentMemberId, currentYear, currentMonth, day, record);
         statusHtml = statusPill(key, key === 'off' ? '휴무' : null);
         cell.classList.remove('is-off');
         cell.classList.add(key === 'off' ? 'is-off' : 'st-' + key);
