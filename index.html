@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>피스팀 출퇴근 대시보드</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 기존 피스팀 대시보드 디자인 그대로 유지 (라이트 단일 테마) */
+  :root {
+    color-scheme: light;
+    --bg-color: #F7F5F0;
+    --navy-main: #1E293B;
+    --point-orange: #C8956C;
+    --text-dark: #334155;
+    --border-color: #E2E8F0;
+
+    --clr-normal: #DEF7EC; --text-normal: #03543F;
+    --clr-late: #FDE8E8; --text-late: #9B1C1C;
+    --clr-h-late: #FEF3C7; --text-h-late: #92400E;
+    --clr-thurs: #E1EFFE; --text-thurs: #1E429F;
+    --clr-no-out: #FFF9E6; --text-no-out: #B45309;
+    --clr-out-work: #E0E7FF; --text-out-work: #3730A3;
+    --clr-field-trip: #FFEDD5; --text-field-trip: #EA580C;
+    --clr-holiday: #F3F4F6; --text-holiday: #6B7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', system-ui, sans-serif; background-color: var(--bg-color); color: var(--text-dark); padding-block: 20px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); line-height: 1.5; }
+  .mono { font-family: 'DM Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  header { background-color: var(--navy-main); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 24px; font-weight: 700; }
+  header h1 span { color: var(--point-orange); }
+  .sync { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #CBD5E1; flex-wrap: wrap; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748B; display: inline-block; }
+  .sync-dot.ok { background: #34D399; }
+  .sync-dot.err { background: #F87171; }
+  .sync button { background: transparent; border: 1px solid #475569; color: #E2E8F0; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .sync button:hover { border-color: var(--point-orange); color: white; }
+
+  .notice { background: #FFF9E6; color: #92400E; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 15px; margin-bottom: 15px; font-size: 14px; }
+  .notice button { margin-left: 8px; background: var(--navy-main); color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+
+  .month-selector { display: flex; gap: 10px; margin-bottom: 15px; background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap; }
+  .month-selector h4 { display: flex; align-items: center; font-size: 15px; color: var(--navy-main); margin-right: 10px; }
+  .month-btn { background: #FFF; border: 1px solid var(--border-color); padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: bold; color: #475569; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .month-btn.active { background-color: var(--point-orange); color: white; border-color: var(--point-orange); }
+
+  .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+  .tab-btn { background: none; border: none; padding: 10px 20px; font-size: 16px; font-weight: 500; color: #64748B; cursor: pointer; border-radius: 6px; transition: all 0.2s; font-family: inherit; }
+  .tab-btn.active { background-color: var(--navy-main); color: white; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border-color); margin-bottom: 20px; margin-top: 10px; }
+  th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+  th { background-color: #F8FAFC; color: #475569; font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+  .clickable-name { color: #2563EB; font-weight: bold; cursor: pointer; text-decoration: underline; }
+
+  .progress-bar { background-color: #E2E8F0; border-radius: 4px; height: 8px; width: 100px; display: inline-block; vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .progress-fill { background-color: var(--point-orange); height: 100%; }
+
+  .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; display: inline-block; }
+  .bg-normal { background-color: var(--clr-normal); color: var(--text-normal); }
+  .bg-late { background-color: var(--clr-late); color: var(--text-late); }
+
+  .cal-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; background: white; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); }
+  .cal-btn { padding: 8px 16px; border: 1px solid var(--border-color); background: #FFF; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-family: inherit; color: var(--text-dark); }
+  .cal-btn.active { background: var(--point-orange); color: white; border-color: var(--point-orange); }
+
+  .cal-header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+  .cal-header-container h2 { font-size: 20px; color: var(--navy-main); }
+  .print-btn { background: #FFF; border: 1px solid var(--navy-main); color: var(--navy-main); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; }
+  .print-btn:hover { background: var(--navy-main); color: white; }
+
+  .cal-scroll { overflow-x: auto; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); gap: 8px; background: #FFF; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); }
+  .cal-day-head { text-align: center; font-weight: 500; padding: 8px; color: #64748B; background: #F8FAFC; border-radius: 4px; }
+
+  .cal-cell { min-height: 115px; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+  .cal-cell.empty { border-color: transparent; }
+  .cal-cell .num-row { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+  .cal-cell .num { font-weight: bold; font-size: 14px; }
+  .cal-cell .time { font-size: 11px; color: #475569; margin-top: 2px; font-family: 'DM Mono', ui-monospace, monospace; }
+  .cal-cell .status { font-size: 11px; margin-top: 4px; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: 500; }
+  .cal-cell.sat, .cal-cell.sun { background-color: #FAFAFA; color: #94A3B8; }
+  .cal-cell.force-holiday { background-color: #FAFAFA !important; color: #94A3B8; }
+  .exc-tag { font-size: 10px; color: var(--text-h-late); background: var(--clr-h-late); border-radius: 3px; padding: 0 4px; }
+
+  .cal-memo-block { font-size: 11px; color: #6D28D9; background-color: #F5F3FF; padding: 3px 5px; border-radius: 4px; margin-top: 4px; border: 1px solid #DDD6FE; word-break: break-all; font-weight: 500; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; background: white; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-box { width: 16px; height: 16px; border-radius: 3px; }
+
+  .loading { padding: 40px; text-align: center; color: #64748B; background: white; border-radius: 12px; border: 1px solid var(--border-color); }
+
+  button:focus-visible { outline: 2px solid var(--point-orange); outline-offset: 2px; }
+
+  @media print {
+    body { background: white; padding: 0; }
+    header, .month-selector, .tabs, .cal-controls, .print-btn, .legend, .notice, #summary { display: none !important; }
+    #calendar { display: block !important; }
+  }
+</style>
+
+<header>
+  <h1><span>피스팀 출퇴근 대시보드</span></h1>
+  <div class="sync">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-text">구글 시트 불러오는 중…</span>
+    <button type="button" id="refresh-btn">새로고침</button>
+  </div>
+</header>
+
+<div id="notice-area"></div>
+
+<div class="month-selector" id="month-selector">
+  <h4>📅 조회 월 선택 :</h4>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-link-summary" onclick="openTab('summary')">전체 요약</button>
+  <button class="tab-btn" id="tab-link-calendar" onclick="openTab('calendar')">개별 캘린더</button>
+</div>
+
+<!-- 탭 1: 전체 요약 -->
+<div id="summary" class="tab-content active summary-section">
+  <div class="table-wrap">
+    <table id="summary-table">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>출근일수 / 대상일수</th>
+          <th>출근율</th>
+          <th>지각 횟수</th>
+          <th>지각 시간(분)</th>
+        </tr>
+      </thead>
+      <tbody id="summary-table-body">
+        <tr><td colspan="5" style="color:#64748B">구글 시트에서 기록을 불러오는 중입니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 탭 2: 개별 캘린더 -->
+<div id="calendar" class="tab-content">
+  <div class="cal-controls" id="calendar-member-btns"></div>
+
+  <div class="member-cal" id="dynamic-calendar-wrapper">
+    <div class="cal-header-container">
+      <h2 id="calendar-view-headline">간사 기록</h2>
+      <button class="print-btn" id="print-btn" onclick="window.print()">🖨️ 이 달력만 A4 인쇄</button>
+    </div>
+    <div class="cal-scroll"><div class="calendar-grid" id="core-calendar-grid"></div></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-normal);"></div>정상출근</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-late);"></div>지각</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-h-late);"></div>협의된 지각</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-thurs);"></div>목요예배출근</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-out-work);"></div>외부사역</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-field-trip);"></div>외근/출장</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-no-out);"></div>기록 누락/미입력</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--clr-holiday);"></div>공휴일/휴무</div>
+  </div>
+</div>
+
+<script>
+  /* ================= 설정 ================= */
+  const SPREADSHEET_ID = "19jbMmqpyRtGIoU3kF72xNwo6ZtpGAG56bTV1MIaG1Vw";
+  const SHEET_SERVER = "Google Sheets";
+  const TAB_INFO = "기본정보";
+  const TAB_LOG = "출퇴근기록";
+  const TAB_EXC = "예외사항";
+  const REFRESH_MS = 60000;
+
+  const KNOWN_ST = ['외근', '출장', '휴무', '지각', '협의지각', '야근', '출근미입력'];
+  const OFF_TYPES = ['공휴일', '단체휴무'];
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const koreanDays = dayNames;
+
+  /* ================= 상태 ================= */
+  let raw = { info: null, log: null, exc: null };
+  let staffMeta = {};          // m01 -> {name, schedules[{from, workDays, targets}], hireDate, resignDate}
+  let attendanceDatabase = {}; // "2026-9" -> m01 -> day -> {in,out,st,memo}
+  let exceptionsMap = {};      // "2026-9" -> day -> [{type, who, time, memo}]
+  let monthList = [];          // [{y,m}] 최신순
+  let currentYear = null, currentMonth = null, currentMemberId = null;
+
+  /* ================= 파싱 도우미 ================= */
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const clean = v => String(v ?? '').trim();
+
+  function normTime(v) {
+    const m = clean(v).match(/^(\d{1,2})\s*:\s*(\d{2})/);
+    if (!m) return '';
+    return m[1].padStart(2, '0') + ':' + m[2];
+  }
+  const toMin = t => { const m = normTime(t).match(/^(\d{2}):(\d{2})$/); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+
+  function parseDate(v) {
+    const m = clean(v).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+
+  function rowsFromValues(values, firstHeader) {
+    if (!Array.isArray(values) || !values.length) return [];
+    const head = clean(values[0][0]);
+    if (firstHeader && head !== firstHeader) return null; // 다른 탭이 잘못 넘어온 경우
+    return values.slice(1);
+  }
+
+  /* ================= 시트 → 데이터 구조 ================= */
+  function buildModel() {
+    // 1) 기본정보
+    // 같은 이름이 여러 줄이면 '적용시작일'부터 그 줄의 근무표를 씁니다 (비어 있으면 처음부터)
+    staffMeta = {};
+    const nameToId = {};
+    let seq = 0;
+    (rowsFromValues(raw.info, '이름') || []).forEach(r => {
+      const name = clean(r[0]);
+      if (!name) return;
+      const targets = {};
+      ['월', '화', '수', '목', '금'].forEach((d, k) => { const t = normTime(r[k + 1]); if (t) targets[d] = t; });
+      let id = nameToId[name];
+      if (!id) {
+        id = 'm' + String(++seq).padStart(2, '0');
+        nameToId[name] = id;
+        staffMeta[id] = { name, schedules: [], hireDate: null, resignDate: null };
+      }
+      const meta = staffMeta[id];
+      meta.schedules.push({ from: parseDate(r[9]), workDays: Object.keys(targets), targets });
+      meta.hireDate ||= parseDate(r[7]);
+      meta.resignDate ||= parseDate(r[8]);
+    });
+    Object.values(staffMeta).forEach(m => m.schedules.sort((a, b) => (a.from ? +a.from : -Infinity) - (b.from ? +b.from : -Infinity)));
+
+    // 2) 출퇴근기록
+    attendanceDatabase = {};
+    const monthsSeen = new Set();
+    (rowsFromValues(raw.log, '연도') || []).forEach(r => {
+      const y = parseInt(r[0]), mo = parseInt(r[1]), d = parseInt(r[2]);
+      const id = nameToId[clean(r[3])];
+      if (!y || !mo || !d || !id) return;
+      let st = clean(r[6]), memo = clean(r[7]);
+      if (st && !KNOWN_ST.includes(st)) { memo = memo ? st + ' / ' + memo : st; st = ''; }
+      const key = `${y}-${mo}`;
+      monthsSeen.add(y * 100 + mo);
+      ((attendanceDatabase[key] ||= {})[id] ||= {})[d] = { in: normTime(r[4]), out: normTime(r[5]), st, memo };
+    });
+
+    // 3) 예외사항
+    exceptionsMap = {};
+    (rowsFromValues(raw.exc, '시작일') || []).forEach(r => {
+      const start = parseDate(r[0]);
+      const type = clean(r[2]);
+      if (!start || !type) return;
+      const end = parseDate(r[1]) || start;
+      const whoRaw = clean(r[3]);
+      const who = (!whoRaw || whoRaw === '전체') ? null : whoRaw.split(/[,\s/]+/).filter(Boolean);
+      const item = { type, who, time: normTime(r[4]), memo: clean(r[5]) };
+      for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+        const key = `${dt.getFullYear()}-${dt.getMonth() + 1}`;
+        ((exceptionsMap[key] ||= {})[dt.getDate()] ||= []).push(item);
+      }
+    });
+
+    // 4) 월 버튼 목록: 기록이 있는 첫 달 ~ 마지막 달 (중간 빈 달 포함)
+    monthList = [];
+    if (monthsSeen.size) {
+      const arr = [...monthsSeen].sort((a, b) => a - b);
+      let y = Math.floor(arr[0] / 100), m = arr[0] % 100;
+      const lastY = Math.floor(arr[arr.length - 1] / 100), lastM = arr[arr.length - 1] % 100;
+      while (y < lastY || (y === lastY && m <= lastM)) {
+        monthList.unshift({ y, m });
+        m++; if (m > 12) { m = 1; y++; }
+      }
+    }
+    if (currentYear === null && monthList.length) { currentYear = monthList[0].y; currentMonth = monthList[0].m; }
+  }
+
+  /* ================= 예외사항 적용 ================= */
+  function exceptionsFor(memId, year, month, day) {
+    const list = (exceptionsMap[`${year}-${month}`] || {})[day] || [];
+    const name = staffMeta[memId]?.name;
+    return list.filter(e => !e.who || e.who.includes(name));
+  }
+  function offException(memId, y, m, d) {
+    return exceptionsFor(memId, y, m, d).find(e => OFF_TYPES.includes(e.type)) || null;
+  }
+
+  // 단체외근 예외는 기록이 없는 사람에게 '외근' 기록을 자동으로 채워줍니다
+  function getMemberMonth(memId, year, month) {
+    const base = ((attendanceDatabase[`${year}-${month}`] || {})[memId]) || {};
+    const merged = { ...base };
+    const excMonth = exceptionsMap[`${year}-${month}`] || {};
+    Object.keys(excMonth).forEach(d => {
+      const g = exceptionsFor(memId, year, month, +d).find(e => e.type === '단체외근');
+      if (g && !merged[d] && isRequiredWorkDay(memId, year, month, +d)) {
+        merged[d] = { in: '', out: '', st: '외근', memo: g.memo || '단체외근' };
+      }
+    });
+    return merged;
+  }
+
+  function isVisible(memId, year, month) {
+    const meta = staffMeta[memId];
+    const first = new Date(year, month - 1, 1), last = new Date(year, month, 0);
+    if (meta.resignDate && meta.resignDate < first) return false;
+    if (meta.hireDate && meta.hireDate > last) return false;
+    return true;
+  }
+  const visibleIds = () => Object.keys(staffMeta).filter(id => isVisible(id, currentYear, currentMonth));
+
+  function scheduleFor(memId, date) {
+    const list = staffMeta[memId]?.schedules || [];
+    let pick = list[0] || { workDays: [], targets: {} };
+    list.forEach(s => { if (!s.from || s.from <= date) pick = s; });
+    return pick;
+  }
+
+  /* ================= 기존 계산 로직 ================= */
+  function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+
+  function isRequiredWorkDay(memId, year, month, day) {
+    if (offException(memId, year, month, day)) return false;
+    const meta = staffMeta[memId];
+    if (!meta) return false;
+    const cellDate = new Date(year, month - 1, day);
+    if (meta.hireDate && cellDate < meta.hireDate) return false;
+    if (meta.resignDate && cellDate > meta.resignDate) return false;
+    const dow = cellDate.getDay();
+    if (dow === 0 || dow === 6) return false;
+    return scheduleFor(memId, cellDate).workDays.includes(koreanDays[dow]);
+  }
+
+  function getTargetWorkDays(memId, year, month) {
+    let count = 0;
+    for (let d = 1; d <= getDaysInMonth(year, month); d++) if (isRequiredWorkDay(memId, year, month, d)) count++;
+    return count;
+  }
+
+  function targetTimeFor(memId, year, month, day) {
+    const ex = exceptionsFor(memId, year, month, day).find(e => e.type === '출근시간변경' && e.time);
+    if (ex) return { time: ex.time, exception: ex };
+    const date = new Date(year, month - 1, day);
+    return { time: scheduleFor(memId, date).targets[koreanDays[date.getDay()]] || "09:00", exception: null };
+  }
+
+  function evaluateDayMetrics(memId, year, month, day, inTime) {
+    if (!inTime) return { isLate: false };
+    const t = toMin(inTime), target = toMin(targetTimeFor(memId, year, month, day).time);
+    return { isLate: t !== null && target !== null && t > target };
+  }
+
+  function tally(memId, year, month, memData) {
+    let attended = 0, late = 0, lateMin = 0;
+    // 지각인 날의 '출근시간 - 기준시간'(분)을 더합니다
+    const minutesLate = d => {
+      const inM = toMin(memData[d].in), tM = toMin(targetTimeFor(memId, year, month, +d).time);
+      return (inM !== null && tM !== null && inM > tM) ? inM - tM : 0;
+    };
+    Object.keys(memData).forEach(day => {
+      const rec = memData[day];
+      // 휴무일(공휴일·단체휴무·주말·본인 근무요일 아닌 날)의 기록은 출근일수와 지각에서 뺍니다
+      if (!isRequiredWorkDay(memId, year, month, +day)) return;
+      if (rec.st === '휴무') return;
+      if (rec.in || rec.out || rec.memo || rec.st === '외근' || rec.st === '출장' || rec.st === '야근') attended++;
+      if (rec.st === '지각') { late++; lateMin += minutesLate(day); }
+      else if (rec.st !== '협의지각' && rec.st !== '외근' && rec.st !== '출장') {
+        if (evaluateDayMetrics(memId, year, month, +day, rec.in).isLate) { late++; lateMin += minutesLate(day); }
+      }
+    });
+    return { attended, late, lateMin };
+  }
+
+  /* ================= 렌더링 ================= */
+  function renderMonthButtons() {
+    const box = document.getElementById('month-selector');
+    box.querySelectorAll('.month-btn').forEach(b => b.remove());
+    monthList.forEach(({ y, m }) => {
+      const btn = document.createElement('button');
+      btn.className = 'month-btn' + (y === currentYear && m === currentMonth ? ' active' : '');
+      btn.id = `m-btn-${y}-${m}`;
+      btn.textContent = `${y}년 ${m}월`;
+      btn.onclick = () => changeGlobalMonth(y, m);
+      box.appendChild(btn);
+    });
+  }
+
+  function changeGlobalMonth(year, month) {
+    currentYear = year; currentMonth = month;
+    document.querySelectorAll('.month-btn').forEach(b => b.classList.toggle('active', b.id === `m-btn-${year}-${month}`));
+    refreshView();
+  }
+
+  function refreshView() {
+    if (currentYear === null) return;
+    renderSummaryTable();
+    renderCalendarControls();
+    generateCalendarView();
+  }
+
+  function renderSummaryTable() {
+    const tbody = document.getElementById('summary-table-body');
+    tbody.innerHTML = '';
+    visibleIds().forEach(memId => {
+      const meta = staffMeta[memId];
+      const memData = getMemberMonth(memId, currentYear, currentMonth);
+      const totalTarget = getTargetWorkDays(memId, currentYear, currentMonth);
+      const { attended, late, lateMin } = tally(memId, currentYear, currentMonth, memData);
+      const rate = totalTarget > 0 ? Math.round((attended / totalTarget) * 100) : 0;
+      const bounded = Math.min(rate, 100);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="clickable-name" onclick="goCalendar('${memId}')">${esc(meta.name)}</span></td>
+        <td class="mono">${attended} / ${totalTarget}</td>
+        <td><div class="progress-bar"><div class="progress-fill" style="width:${bounded}%"></div></div>${rate}%</td>
+        <td class="mono" ${late > 0 ? 'style="color:var(--text-late); font-weight:bold;"' : ''}>${late}회</td>
+        <td class="mono" ${lateMin > 0 ? 'style="color:var(--text-late); font-weight:bold;"' : ''}>${lateMin}분</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCalendarControls() {
+    const ids = visibleIds();
+    if (!ids.includes(currentMemberId)) currentMemberId = ids[0] || null;
+    const container = document.getElementById('calendar-member-btns');
+    container.innerHTML = '';
+    ids.forEach(memId => {
+      const btn = document.createElement('button');
+      btn.className = `cal-btn ${memId === currentMemberId ? 'active' : ''}`;
+      btn.innerText = staffMeta[memId].name;
+      btn.onclick = () => {
+        currentMemberId = memId;
+        document.querySelectorAll('.cal-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        generateCalendarView();
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  const statusDiv = (bg, fg, text) => `<div class="status" style="background:var(${bg}); color:var(${fg})">${esc(text)}</div>`;
+
+  function generateCalendarView() {
+    const meta = staffMeta[currentMemberId];
+    const grid = document.getElementById('core-calendar-grid');
+    if (!meta) { grid.innerHTML = ''; return; }
+    const totalDays = getDaysInMonth(currentYear, currentMonth);
+    const firstDayIndex = new Date(currentYear, currentMonth - 1, 1).getDay();
+    const memData = getMemberMonth(currentMemberId, currentYear, currentMonth);
+    const { attended, late } = tally(currentMemberId, currentYear, currentMonth, memData);
+
+    document.getElementById('calendar-view-headline').innerHTML =
+      `${esc(meta.name)} 간사 ${currentYear}년 ${currentMonth}월 기록 <span class="badge bg-normal">출근 ${attended}일</span> <span class="badge ${late > 0 ? 'bg-late' : 'bg-normal'}">지각 ${late}회</span>`;
+
+    grid.innerHTML = '';
+    dayNames.forEach(d => { const h = document.createElement('div'); h.className = 'cal-day-head'; h.innerText = d; grid.appendChild(h); });
+    for (let i = 0; i < firstDayIndex; i++) { const e = document.createElement('div'); e.className = 'cal-cell empty'; grid.appendChild(e); }
+
+    for (let day = 1; day <= totalDays; day++) {
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      const cellDate = new Date(currentYear, currentMonth - 1, day);
+      const dow = cellDate.getDay();
+      if (dow === 6) cell.classList.add('sat');
+      if (dow === 0) cell.classList.add('sun');
+
+      const tt = targetTimeFor(currentMemberId, currentYear, currentMonth, day);
+      const excTag = tt.exception ? `<span class="exc-tag" title="${esc(tt.exception.memo)}">${esc(tt.time)} 기준</span>` : '';
+      let numHtml = `<div class="num-row"><span class="num">${day}</span>${excTag}</div>`;
+      let timeHtml = '', statusHtml = '', memoHtml = '';
+
+      const isBeforeHire = meta.hireDate && cellDate < meta.hireDate;
+      const isAfterResign = meta.resignDate && cellDate > meta.resignDate;
+      const off = offException(currentMemberId, currentYear, currentMonth, day);
+
+      if (off) {
+        statusHtml = statusDiv('--clr-holiday', '--text-holiday', off.memo || off.type);
+        cell.classList.add('force-holiday');
+        const offRec = memData[day];
+        if (offRec && (offRec.in || offRec.out)) timeHtml = `<div class="time">출 ${offRec.in || '--:--'}</div><div class="time">퇴 ${offRec.out || '--:--'}</div>`;
+      } else if (isBeforeHire || isAfterResign || dow === 0 || dow === 6 || !scheduleFor(currentMemberId, cellDate).workDays.includes(koreanDays[dow])) {
+        statusHtml = statusDiv('--clr-holiday', '--text-holiday', '휴무');
+        if (isBeforeHire || isAfterResign) cell.classList.add('force-holiday');
+      }
+
+      const record = memData[day];
+      if (record && !isBeforeHire && !isAfterResign && !off) {
+        if (record.st !== '휴무') timeHtml = `<div class="time">출 ${record.in || '--:--'}</div><div class="time">퇴 ${record.out || '--:--'}</div>`;
+        const evalRes = evaluateDayMetrics(currentMemberId, currentYear, currentMonth, day, record.in);
+        if (record.st === '휴무') { cell.classList.add('force-holiday'); statusHtml = statusDiv('--clr-holiday', '--text-holiday', '휴무'); }
+        else if (record.st === '출장') statusHtml = statusDiv('--clr-field-trip', '--text-field-trip', '출장');
+        else if (record.st === '외근' || record.memo?.includes('외부사역')) statusHtml = statusDiv('--clr-out-work', '--text-out-work', '외근/사역');
+        else if (record.st === '지각' || evalRes.isLate) statusHtml = statusDiv('--clr-late', '--text-late', '지각');
+        else if (record.st === '협의지각') statusHtml = statusDiv('--clr-h-late', '--text-h-late', '협의지각');
+        else statusHtml = statusDiv('--clr-normal', '--text-normal', '정상출근');
+        if (record.memo) memoHtml = `<div class="cal-memo-block">💬 ${esc(record.memo)}</div>`;
+      }
+
+      cell.innerHTML = numHtml + timeHtml + statusHtml + memoHtml;
+      grid.appendChild(cell);
+    }
+  }
+
+  function openTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.getElementById(`tab-link-${tabId}`).classList.add('active');
+  }
+
+  function goCalendar(memId) {
+    currentMemberId = memId;
+    openTab('calendar');
+    renderCalendarControls();
+    generateCalendarView();
+  }
+
+  /* ================= 상태 표시 ================= */
+  function setSync(state, text) {
+    document.getElementById('sync-dot').className = 'sync-dot ' + (state || '');
+    document.getElementById('sync-text').textContent = text;
+  }
+  const notices = {};
+  function setNotice(key, html) {
+    if (html) notices[key] = html; else delete notices[key];
+    document.getElementById('notice-area').innerHTML = Object.values(notices).map(h => `<div class="notice">${h}</div>`).join('');
+    const btn = document.getElementById('approve-btn');
+    if (btn) btn.onclick = approveOnce;
+  }
+  function stamp(ms) {
+    const d = ms ? new Date(ms) : new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  let renderQueued = false;
+  function scheduleRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    setTimeout(() => {
+      renderQueued = false;
+      if (!raw.info || !raw.log) return;
+      buildModel();
+      renderMonthButtons();
+      refreshView();
+    }, 50);
+  }
+
+  /* ================= 구글 시트 연결 (Claude 커넥터) ================= */
+  let mcpRef = null;
+  const RANGES = { info: `'${TAB_INFO}'!A:J`, log: `'${TAB_LOG}'!A:H`, exc: `'${TAB_EXC}'!A:F` };
+
+  function explain(err) {
+    switch (err?.code) {
+      case 'server_not_connected':
+      case 'selection_required':
+        return 'Google Sheets 커넥터가 연결되어 있지 않습니다. claude.ai 설정 → 커넥터에서 Google Sheets를 추가해 주세요.';
+      case 'needs_reauth':
+        return 'Google Sheets 연결이 만료되었습니다. claude.ai 설정 → 커넥터에서 다시 연결해 주세요.';
+      case 'approval_required':
+      case 'not_in_manifest':
+        return '이 페이지가 구글 시트를 읽으려면 허용이 필요합니다. <button type="button" id="approve-btn">시트 읽기 허용</button>';
+      case 'tool_error':
+        return '구글 시트를 읽지 못했습니다. 시트 공유 권한을 확인해 주세요. (' + esc(err.message || '') + ')';
+      case 'server_unavailable':
+        return '구글 시트 서버가 잠시 응답하지 않습니다. 잠시 후 새로고침해 주세요.';
+      default:
+        return '구글 시트를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.';
+    }
+  }
+
+  async function approveOnce() {
+    try {
+      const res = await mcpRef.callTool(SHEET_SERVER, 'get_values', { spreadsheetId: SPREADSHEET_ID, range: RANGES.info });
+      raw.info = res.payload?.values || [];
+      setNotice('auth', null);
+      mcpRef.invalidate(SHEET_SERVER, 'get_values').catch(() => {});
+    } catch (e) { setNotice('auth', explain(e)); }
+  }
+
+  function watchRange(part) {
+    mcpRef.watchTool(SHEET_SERVER, 'get_values', { spreadsheetId: SPREADSHEET_ID, range: RANGES[part] }, ev => {
+      if (ev.type === 'data') {
+        raw[part] = ev.result.payload?.values || [];
+        if (part !== 'exc') setNotice('auth', null);
+        if (part === 'exc') setNotice('exc', null);
+        setSync('ok', `구글 시트 연동됨 · ${stamp(ev.result.cache?.storedAt)} 기준`);
+        scheduleRender();
+      } else {
+        const err = ev.error;
+        if (part === 'exc' && err?.code === 'tool_error') {
+          // 예외사항 탭이 아직 없으면 예외 없이 계산
+          raw.exc = [];
+          setNotice('exc', '시트에 <b>예외사항</b> 탭이 없어 예외 없이 계산하고 있습니다.');
+          scheduleRender();
+          return;
+        }
+        if (['needs_reauth', 'server_not_connected', 'blocked_by_policy', 'approval_required', 'not_in_manifest', 'selection_required'].includes(err?.code)) {
+          setSync('err', '구글 시트 연결 필요');
+        } else {
+          setSync('err', '불러오기 실패');
+        }
+        setNotice('auth', explain(err));
+      }
+    }, { refetchInterval: REFRESH_MS, cache: { staleTime: 30000 } });
+  }
+
+  /* ================= 대체 경로: 시트 직접 읽기 (Claude 밖에서 열 때) =================
+     <script> 태그(JSONP)로 읽기 때문에 파일을 컴퓨터에서 바로 열어도, 웹에 올려도 동작합니다.
+     시트가 "링크가 있는 모든 사용자" 보기 이상으로 공유되어 있어야 합니다. */
+  let jsonpSeq = 0;
+  function loadTabJSONP(tab) {
+    return new Promise((resolve, reject) => {
+      const cb = '__peaceSheet' + (++jsonpSeq);
+      const s = document.createElement('script');
+      const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 15000);
+      function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
+      window[cb] = res => {
+        cleanup();
+        if (!res || res.status === 'error' || !res.table) return reject(new Error('sheet error'));
+        const head = res.table.cols.map(c => c.label || '');
+        const body = res.table.rows.map(r => (r.c || []).map(cell =>
+          cell == null ? '' : String(cell.f != null ? cell.f : (cell.v != null ? cell.v : ''))));
+        resolve([head, ...body]);
+      };
+      s.onerror = () => { cleanup(); reject(new Error('network')); };
+      s.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cb}&headers=1&sheet=${encodeURIComponent(tab)}&_=${Date.now()}`;
+      document.head.appendChild(s);
+    });
+  }
+  async function loadViaCSV() {
+    try {
+      const [info, log, exc] = await Promise.all([
+        loadTabJSONP(TAB_INFO), loadTabJSONP(TAB_LOG), loadTabJSONP(TAB_EXC).catch(() => [])
+      ]);
+      raw.info = info; raw.log = log;
+      raw.exc = (exc[0] && clean(exc[0][0]) === '시작일') ? exc : [];
+      if (!raw.info.length || !raw.log.length) throw new Error('empty');
+      setSync('ok', `구글 시트 연동됨 · ${stamp()} 기준`);
+      setNotice('auth', null);
+      scheduleRender();
+    } catch (e) {
+      setSync('err', '불러오기 실패');
+      setNotice('auth', '구글 시트를 읽지 못했습니다. 인터넷 연결과, 시트가 "링크가 있는 모든 사용자"에게 공유되어 있는지 확인해 주세요.');
+    }
+  }
+
+  /* ================= 시작 ================= */
+  let csvTimer = null;
+  async function start() {
+    const mcp = window.claude ? await window.claude.use('mcp').catch(() => null) : null;
+    if (mcp) {
+      mcpRef = mcp;
+      document.getElementById('print-btn').hidden = true; // Claude 뷰어 안에서는 인쇄 창이 열리지 않음
+      ['info', 'log', 'exc'].forEach(watchRange);
+      document.getElementById('refresh-btn').onclick = () => {
+        setSync('', '새로 불러오는 중…');
+        mcpRef.invalidate(SHEET_SERVER, 'get_values').catch(() => {});
+      };
+    } else {
+      loadViaCSV();
+      csvTimer = setInterval(loadViaCSV, REFRESH_MS);
+      document.getElementById('refresh-btn').onclick = () => { setSync('', '새로 불러오는 중…'); loadViaCSV(); };
+    }
+  }
+  start();
+</script>
+
+</body>
+</html>
