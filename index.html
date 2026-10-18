@@ -502,13 +502,12 @@
     return { isLate: t !== null && target !== null && t > target };
   }
 
-  // 하루 기록의 카테고리: off(휴무) / trip(출장) / out(외근·외부사역) / hl(협의지각) / late(지각) / ok(정상)
+  // 하루 기록의 카테고리: off(휴무) / out(외근·외부사역, '출장'도 여기에 포함) / late(지각) / ok(정상)
   function classifyDay(memId, year, month, day, rec) {
     const memo = rec.memo || '';
     if (rec.st === '휴무') return 'off';
-    if (rec.st === '출장') return 'trip';
-    if (rec.st === '외근' || memo.includes('외부사역') || memo.includes('외근')) return 'out';
-    if (rec.st === '협의지각') return 'hl';
+    if (rec.st === '외근' || rec.st === '출장' || memo.includes('외부사역') || memo.includes('외근')) return 'out';
+    if (rec.st === '협의지각') return 'ok';
     // 메모가 있는 날은 상태가 '지각'이어도 정상출근으로 봅니다
     if (memo) return 'ok';
     if (rec.st === '지각' || evaluateDayMetrics(memId, year, month, day, rec.in).isLate) return 'late';
@@ -661,7 +660,7 @@
   function renderLegend() {
     const el = document.getElementById('legend');
     if (el.childElementCount) return;
-    el.innerHTML = ['ok', 'late', 'hl', 'out', 'trip', 'miss', 'off'].map(k => statusPill(k, k === 'off' ? '공휴일/휴무' : null)).join('')
+    el.innerHTML = ['ok', 'late', 'out', 'miss', 'off'].map(k => statusPill(k, k === 'off' ? '공휴일/휴무' : null)).join('')
       + `<span class="status s-thu">${icon('clock')}목요예배출근</span>`;
   }
 
