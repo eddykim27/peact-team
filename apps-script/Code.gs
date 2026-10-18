@@ -12,8 +12,8 @@
 
 // ---------- 설정 ----------
 const SECRET = 'fia-2026';          // QR 주소의 k= 값과 같아야 합니다
-const OFFICE_LAT = null;            // 사무실 위도 (예: 37.5665). null이면 위치 확인을 하지 않습니다
-const OFFICE_LNG = null;            // 사무실 경도 (예: 126.9780)
+const OFFICE_LAT = 37.5317;         // 사무실 위도 (인천 계양구 봉오대로531번길 6-9 부근). null이면 위치 확인을 하지 않습니다
+const OFFICE_LNG = 126.7072;        // 사무실 경도
 const OFFICE_RADIUS_M = 300;        // 사무실에서 이 거리(미터) 안일 때만 체크
 const OVERNIGHT_CUTOFF_HOUR = 5;    // 이 시각 전의 퇴근은 전날 퇴근으로 봅니다
 const TZ = 'Asia/Seoul';
