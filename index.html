@@ -714,6 +714,8 @@
         cell.classList.add('is-off');
         const offRec = memData[day];
         if (offRec && (offRec.in || offRec.out)) timeHtml = timesHtml(offRec);
+        if (offRec?.memo) memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(offRec.memo)}</span></div>`;
+        if (offRec && classifyDay(currentMemberId, currentYear, currentMonth, day, offRec) === 'out') statusHtml += statusPill('out');
       } else if (isBeforeHire || isAfterResign || dow === 0 || dow === 6 || !scheduleFor(currentMemberId, cellDate).workDays.includes(koreanDays[dow])) {
         statusHtml = statusPill('off', '휴무');
         cell.classList.add('is-off');
@@ -721,12 +723,19 @@
 
       const record = memData[day];
       if (record && !isBeforeHire && !isAfterResign && !off) {
-        if (record.st !== '휴무') timeHtml = timesHtml(record);
+        if (record.st !== '휴무' && (record.in || record.out || !['외근', '출장'].includes(record.st))) timeHtml = timesHtml(record);
         const key = classifyDay(currentMemberId, currentYear, currentMonth, day, record);
         statusHtml = statusPill(key, key === 'off' ? '휴무' : null);
         cell.classList.remove('is-off');
         cell.classList.add(key === 'off' ? 'is-off' : 'st-' + key);
         if (record.memo) memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(record.memo)}</span></div>`;
+      }
+
+      // 예외사항의 '외근'은 출퇴근 기록이 없거나 쉬는 날이어도 메모와 외근 표시를 남깁니다
+      const outEx = (isBeforeHire || isAfterResign) ? null : exceptionsFor(currentMemberId, currentYear, currentMonth, day).find(e => OUT_TYPES.includes(e.type));
+      if (outEx) {
+        if (!memoHtml && outEx.memo) memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(outEx.memo)}</span></div>`;
+        if (!statusHtml.includes('s-out')) statusHtml += statusPill('out');
       }
 
       cell.innerHTML = numHtml + timeHtml + memoHtml + statusHtml;
