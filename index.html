@@ -420,6 +420,14 @@
     });
 
     // 4) 월 버튼 목록: 기록이 있는 첫 달 ~ 마지막 달 (중간 빈 달 포함)
+    //    이번 달, 그리고 예외사항(휴가 등)이 있는 앞으로의 달도 미리 볼 수 있게 포함합니다
+    const nowD = new Date();
+    const thisYM = nowD.getFullYear() * 100 + nowD.getMonth() + 1;
+    if (monthsSeen.size) {
+      monthsSeen.add(thisYM);
+      const firstYM = Math.min(...monthsSeen);
+      Object.keys(exceptionsMap).forEach(k => { const [y, m] = k.split('-').map(Number); const ym = y * 100 + m; if (ym >= firstYM) monthsSeen.add(ym); });
+    }
     monthList = [];
     if (monthsSeen.size) {
       const arr = [...monthsSeen].sort((a, b) => a - b);
@@ -430,7 +438,10 @@
         m++; if (m > 12) { m = 1; y++; }
       }
     }
-    if (currentYear === null && monthList.length) { currentYear = monthList[0].y; currentMonth = monthList[0].m; }
+    if (currentYear === null && monthList.length) {
+      const pick = monthList.find(x => x.y * 100 + x.m === thisYM) || monthList[0];
+      currentYear = pick.y; currentMonth = pick.m;
+    }
   }
 
   /* ================= 예외사항 적용 ================= */
