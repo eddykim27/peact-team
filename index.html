@@ -223,6 +223,8 @@
   .cal-cell.st-hl { background: color-mix(in srgb, var(--hl-bg) 60%, var(--surface)); border-color: transparent; }
   .cal-cell.st-out { background: color-mix(in srgb, var(--out-bg) 60%, var(--surface)); border-color: transparent; }
   .cal-cell.st-trip { background: color-mix(in srgb, var(--trip-bg) 60%, var(--surface)); border-color: transparent; }
+  .cal-cell.st-leave { background: color-mix(in srgb, var(--trip-bg) 75%, var(--surface)); border: 1px solid transparent; }
+  .cal-cell.st-leave .day-num, .cal-cell.st-leave .times { color: var(--trip); }
   .num-row { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
   .day-num { font-family: var(--f-num); font-weight: 600; font-size: 15px; color: var(--ink); }
   .cal-cell.is-off .day-num, .sun-num { color: var(--ink-3); }
@@ -235,6 +237,7 @@
   .s-ok { background: var(--ok-bg); color: var(--ok); } .s-late { background: var(--late-bg); color: var(--late); }
   .s-hl { background: var(--hl-bg); color: var(--hl); } .s-out { background: var(--out-bg); color: var(--out); }
   .s-trip { background: var(--trip-bg); color: var(--trip); } .s-off { background: var(--off-bg); color: var(--off); }
+  .s-leave { background: var(--surface); color: var(--trip); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--trip) 35%, transparent); }
   .s-miss { background: var(--miss-bg); color: var(--miss); } .s-thu { background: var(--thu-bg); color: var(--thu); }
   .cal-memo-block { font-size: 11px; color: var(--memo); background: var(--memo-bg); padding: 3px 7px; border-radius: 8px; word-break: break-all; font-weight: 500; display: flex; gap: 4px; align-items: flex-start; }
   .cal-memo-block .ico { margin-top: 3px; font-size: 10px; }
@@ -559,6 +562,7 @@
     out:  { cls: 's-out',  icon: 'brief',  label: '외근/사역' },
     trip: { cls: 's-trip', icon: 'plane',  label: '출장' },
     off:  { cls: 's-off',  icon: 'coffee', label: '휴무' },
+    leave: { cls: 's-leave', icon: 'plane', label: '개인 휴가' },
     miss: { cls: 's-miss', icon: 'help',   label: '기록 누락' }
   };
   const statusPill = (key, text) => { const s = STATUS[key]; return `<span class="status ${s.cls}">${icon(s.icon)}${esc(text || s.label)}</span>`; };
@@ -662,7 +666,7 @@
   function renderLegend() {
     const el = document.getElementById('legend');
     if (el.childElementCount) return;
-    el.innerHTML = ['ok', 'late', 'out', 'miss', 'off'].map(k => statusPill(k, k === 'off' ? '공휴일/휴무' : null)).join('')
+    el.innerHTML = ['ok', 'late', 'out', 'miss', 'leave', 'off'].map(k => statusPill(k, k === 'off' ? '공휴일/휴무' : null)).join('')
       + `<span class="status s-thu">${icon('clock')}목요예배출근</span>`;
   }
 
@@ -713,8 +717,11 @@
       const off = offException(currentMemberId, currentYear, currentMonth, day);
 
       if (off) {
-        statusHtml = statusPill('off', off.memo || off.type);
-        cell.classList.add('is-off');
+        // 특정한 사람만 있는 '휴무'는 개인 휴가로 보고 주황색으로 표시합니다 (공휴일·전체 휴무는 회색)
+        const workday = dow !== 0 && dow !== 6 && scheduleFor(currentMemberId, cellDate).workDays.includes(koreanDays[dow]);
+        const personal = off.type !== '공휴일' && off.who && workday;
+        statusHtml = statusPill(personal ? 'leave' : 'off', off.memo || (personal ? '휴가' : off.type));
+        cell.classList.add(personal ? 'st-leave' : 'is-off');
         const offRec = memData[day];
         if (offRec && (offRec.in || offRec.out)) timeHtml = timesHtml(offRec);
         if (offRec?.memo) memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(offRec.memo)}</span></div>`;
@@ -728,10 +735,12 @@
       if (record && !isBeforeHire && !isAfterResign && !off) {
         if (record.st !== '휴무' && (record.in || record.out || !['외근', '출장'].includes(record.st))) timeHtml = timesHtml(record);
         const key = classifyDay(currentMemberId, currentYear, currentMonth, day, record);
-        statusHtml = statusPill(key, key === 'off' ? '휴무' : null);
+        // 출퇴근기록의 상태가 '휴무'인 날도 개인 휴가로 표시합니다
+        const shown = key === 'off' ? 'leave' : key;
+        statusHtml = statusPill(shown, shown === 'leave' ? (record.memo || '휴가') : null);
         cell.classList.remove('is-off');
-        cell.classList.add(key === 'off' ? 'is-off' : 'st-' + key);
-        if (record.memo) memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(record.memo)}</span></div>`;
+        cell.classList.add('st-' + shown);
+        if (record.memo && shown !== 'leave') memoHtml = `<div class="cal-memo-block">${icon('chat')}<span>${esc(record.memo)}</span></div>`;
       }
 
       // 예외사항의 '외근'은 출퇴근 기록이 없거나 쉬는 날이어도 메모와 외근 표시를 남깁니다
