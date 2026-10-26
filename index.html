@@ -226,6 +226,7 @@
   .num-row { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
   .day-num { font-family: var(--f-num); font-weight: 600; font-size: 15px; color: var(--ink); }
   .cal-cell.is-off .day-num, .sun-num { color: var(--ink-3); }
+  .exc-tags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
   .exc-tag { font-size: 10px; color: var(--hl); background: var(--hl-bg); border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
   .times { display: flex; flex-direction: column; gap: 1px; font-size: 12px; color: var(--ink-2); }
   .times b { font-family: var(--f-body); font-weight: 500; color: var(--ink-3); font-size: 11px; margin-right: 5px; }
@@ -701,8 +702,10 @@
       if (cellDate.toDateString() === now.toDateString()) cell.classList.add('today');
 
       const tt = targetTimeFor(currentMemberId, currentYear, currentMonth, day);
-      const excTag = tt.exception ? `<span class="exc-tag" title="${esc(tt.exception.memo)}">${esc(tt.time)} 기준</span>` : '';
-      const numHtml = `<div class="num-row"><span class="day-num">${day}</span>${excTag}</div>`;
+      const outAdj = exceptionsFor(currentMemberId, currentYear, currentMonth, day).find(e => e.type === '퇴근시간조정' && e.time);
+      const excTag = (tt.exception ? `<span class="exc-tag" title="${esc(tt.exception.memo)}">출근 ${esc(tt.time)}</span>` : '')
+        + (outAdj ? `<span class="exc-tag" title="${esc(outAdj.memo)}">퇴근 ${esc(outAdj.time)}</span>` : '');
+      const numHtml = `<div class="num-row"><span class="day-num">${day}</span><span class="exc-tags">${excTag}</span></div>`;
       let timeHtml = '', statusHtml = '', memoHtml = '';
 
       const isBeforeHire = meta.hireDate && cellDate < meta.hireDate;
