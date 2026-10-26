@@ -750,6 +750,13 @@
         if (!statusHtml.includes('s-out')) statusHtml += statusPill('out');
       }
 
+      // 출근시간변경·퇴근시간조정 예외의 메모도 달력에 표시합니다
+      if (!(isBeforeHire || isAfterResign)) {
+        [tt.exception?.memo, outAdj?.memo].filter(Boolean).forEach(m => {
+          if (!memoHtml.includes(esc(m))) memoHtml += `<div class="cal-memo-block">${icon('chat')}<span>${esc(m)}</span></div>`;
+        });
+      }
+
       cell.innerHTML = numHtml + timeHtml + memoHtml + statusHtml;
       grid.appendChild(cell);
     }
