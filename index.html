@@ -126,8 +126,15 @@
 
   /* ---------- 월 선택 + 탭 ---------- */
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .months { display: flex; gap: 8px; overflow-x: auto; padding: 6px 6px 16px; margin: -6px -6px -10px; scrollbar-width: none; min-width: 0; flex: 1 1 320px; }
-  .months::-webkit-scrollbar { display: none; }
+  .months { display: flex; align-items: center; gap: 8px; padding: 6px 6px 16px; margin: -6px -6px -10px; min-width: 0; flex: 1 1 320px; }
+  .month-chips { display: flex; gap: 8px; min-width: 0; }
+  .month-nav {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface);
+    display: grid; place-items: center; cursor: pointer; color: var(--ink-2); box-shadow: var(--shadow); font-size: 16px; transition: transform .2s, color .2s;
+  }
+  .month-nav:hover:not([disabled]) { transform: translateY(-2px); color: var(--ink); }
+  .month-nav[disabled] { opacity: .35; cursor: default; box-shadow: none; }
+  .month-btn .yr { font-weight: 400; opacity: .75; }
   .month-btn {
     flex: none; border: 1px solid var(--line); background: var(--surface); padding: 9px 16px; border-radius: 999px;
     font-size: 14px; font-weight: 500; color: var(--ink-2); cursor: pointer; box-shadow: var(--shadow);
@@ -252,6 +259,9 @@
     .cal-card { padding: 16px; border-radius: 22px; }
     .toolbar { flex-direction: column; align-items: stretch; }
     .months { flex: none; }
+    .month-chips { flex: 1; justify-content: space-between; gap: 4px; }
+    .month-btn { padding: 8px 10px; }
+    .month-btn .yr { display: none; }
     .tabs { align-self: flex-start; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -592,22 +602,51 @@
   }
 
   /* ================= 렌더링 ================= */
+  // 월 선택: 오래된 달이 왼쪽, 5개씩 보여주고 양쪽 화살표로 한 달씩 이동합니다
+  const MONTHS_SHOWN = 5;
+  let monthStart = null;
+  const navIcon = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
   function renderMonthButtons() {
     const box = document.getElementById('month-selector');
+    const chrono = [...monthList].reverse();
+    const maxStart = Math.max(0, chrono.length - MONTHS_SHOWN);
+    const sel = chrono.findIndex(x => x.y === currentYear && x.m === currentMonth);
+    if (monthStart === null || (sel >= 0 && (sel < monthStart || sel >= monthStart + MONTHS_SHOWN))) {
+      monthStart = sel >= 0 ? sel - Math.floor(MONTHS_SHOWN / 2) : maxStart;
+    }
+    monthStart = Math.min(Math.max(0, monthStart), maxStart);
+
     box.innerHTML = '';
-    monthList.forEach(({ y, m }) => {
+    const prev = document.createElement('button');
+    prev.type = 'button'; prev.className = 'month-nav'; prev.setAttribute('aria-label', '이전 달');
+    prev.innerHTML = navIcon('m15 18-6-6 6-6');
+    prev.disabled = monthStart <= 0;
+    prev.onclick = () => { monthStart--; renderMonthButtons(); };
+
+    const chips = document.createElement('div');
+    chips.className = 'month-chips';
+    chrono.slice(monthStart, monthStart + MONTHS_SHOWN).forEach(({ y, m }) => {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'month-btn' + (y === currentYear && m === currentMonth ? ' active' : '');
       btn.id = `m-btn-${y}-${m}`;
-      btn.textContent = `${y}년 ${m}월`;
+      btn.innerHTML = `<span class="yr">${y}년 </span>${m}월`;
       btn.onclick = () => changeGlobalMonth(y, m);
-      box.appendChild(btn);
+      chips.appendChild(btn);
     });
+
+    const next = document.createElement('button');
+    next.type = 'button'; next.className = 'month-nav'; next.setAttribute('aria-label', '다음 달');
+    next.innerHTML = navIcon('m9 18 6-6-6-6');
+    next.disabled = monthStart >= maxStart;
+    next.onclick = () => { monthStart++; renderMonthButtons(); };
+
+    box.append(prev, chips, next);
   }
 
   function changeGlobalMonth(year, month) {
     currentYear = year; currentMonth = month;
-    document.querySelectorAll('.month-btn').forEach(b => b.classList.toggle('active', b.id === `m-btn-${year}-${month}`));
+    renderMonthButtons();
     refreshView();
   }
 
